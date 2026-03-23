@@ -10,9 +10,9 @@ body.dark {
     color: white;
 }
 
-/* LIGHT MODE (PRETTY COLORS) */
+/* LIGHT MODE (VERY ATTRACTIVE) */
 body.light {
-    background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb);
+    background: linear-gradient(135deg, #ffdde1, #ee9ca7, #c2e9fb);
     color: #222;
 }
 
@@ -43,7 +43,7 @@ body.dark button {
 }
 
 body.light button {
-    background: #ff6ec4;
+    background: #ff4ecd;
     color: white;
 }
 
@@ -66,7 +66,7 @@ button:hover {
     transition: 0.4s;
     opacity: 0;
     transform: translateY(20px);
-    animation: fadeIn 0.5s forwards;
+    animation: fadeIn 0.6s forwards;
 }
 
 @keyframes fadeIn {
@@ -84,7 +84,7 @@ body.light .movie-card {
     background: white;
 }
 
-/* HOVER EFFECT */
+/* HOVER */
 .movie-card:hover {
     transform: scale(1.08);
 }
@@ -96,13 +96,12 @@ body.light .movie-card {
     object-fit: cover;
 }
 
-/* TITLE */
+/* TEXT */
 .movie-card h3 {
     padding: 8px;
     font-size: 14px;
 }
 
-/* EXTRA INFO */
 .movie-card p {
     padding: 0 8px 10px;
     font-size: 12px;
