@@ -47,18 +47,32 @@ function displayMovies(movies) {
             ? IMG_URL + movie.poster_path
             : "https://via.placeholder.com/300x400?text=No+Image";
 
-        const rating = movie.vote_average || "N/A";
-        const desc = movie.overview ? movie.overview.substring(0, 80) : "No description";
+        const rating = movie.vote_average ? movie.vote_average.toFixed(1) : "N/A";
+        const year = movie.release_date ? movie.release_date.split("-")[0] : "N/A";
+        const desc = movie.overview ? movie.overview.substring(0, 60) : "No description";
+
+        const age = getAgeRating(rating);
+
+        const genres = ["Action", "Drama", "Comedy", "Thriller"];
+        const randomGenre = genres[Math.floor(Math.random() * genres.length)];
 
         const card = document.createElement("div");
         card.className = "movie-card";
 
         card.innerHTML = `
             <img src="${poster}">
-            <h3>${movie.title}</h3>
-            <p>⭐ ${rating}</p>
-            <p>${getAgeRating(rating)}</p>
-            <p>${desc}...</p>
+            <div class="movie-info">
+                <h3>${movie.title}</h3>
+
+                <div class="badges">
+                    <span class="badge rating">⭐ ${rating}</span>
+                    <span class="badge age">${age}</span>
+                    <span class="badge genre">${randomGenre}</span>
+                </div>
+
+                <p>📅 ${year}</p>
+                <p>${desc}...</p>
+            </div>
         `;
 
         card.onclick = () => playTrailer(movie.id);
@@ -66,7 +80,6 @@ function displayMovies(movies) {
         container.appendChild(card);
     });
 }
-
 // ==========================
 // AGE CATEGORY
 // ==========================
