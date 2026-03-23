@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MoodFlix AI</title>
+    <title>MoodFlix Pro</title>
 
     <style>
         body {
@@ -10,13 +10,11 @@
             transition: 0.4s;
         }
 
-        /* DARK MODE */
         body.dark {
             background: #0f0f0f;
             color: white;
         }
 
-        /* LIGHT MODE */
         body.light {
             background: linear-gradient(135deg, #ffdde1, #ee9ca7, #c2e9fb);
             color: #222;
@@ -27,14 +25,22 @@
             padding: 20px;
         }
 
-        .mood-buttons {
+        input {
+            padding: 10px;
+            width: 250px;
+            border-radius: 20px;
+            border: none;
+            margin-top: 10px;
+        }
+
+        .controls {
             text-align: center;
             margin: 20px;
         }
 
         button {
-            margin: 8px;
-            padding: 10px 18px;
+            margin: 6px;
+            padding: 10px 15px;
             border: none;
             border-radius: 20px;
             cursor: pointer;
@@ -66,16 +72,7 @@
             border-radius: 12px;
             overflow: hidden;
             transition: 0.4s;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeIn 0.6s forwards;
-        }
-
-        @keyframes fadeIn {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            cursor: pointer;
         }
 
         body.dark .movie-card {
@@ -92,7 +89,7 @@
 
         .movie-card img {
             width: 100%;
-            height: 220px;
+            height: 260px;
             object-fit: cover;
         }
 
@@ -101,9 +98,22 @@
             font-size: 14px;
         }
 
-        .movie-card p {
-            padding: 0 8px 10px;
-            font-size: 12px;
+        /* MODAL */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal iframe {
+            width: 80%;
+            height: 60%;
         }
     </style>
 </head>
@@ -111,78 +121,106 @@
 <body class="dark">
 
 <header>
-    <h1>🎬 MoodFlix</h1>
-    <p>Choose your vibe 🎧</p>
-    <button onclick="toggleMode()">🌗 Toggle Mode</button>
+    <h1>🎬 MoodFlix PRO</h1>
+    <p>AI-like Movie Recommender</p>
+
+    <input type="text" id="search" placeholder="Search movie...">
+
+    <br><br>
+    <button onclick="toggleMode()">🌗 Mode</button>
 </header>
 
-<div class="mood-buttons">
-    <button onclick="filterMovies('high')">🔥 Trending</button>
-    <button onclick="filterMovies('mid')">⭐ Popular</button>
-    <button onclick="filterMovies('low')">🎧 Chill</button>
+<div class="controls">
+    <button onclick="getMovies('popular')">🔥 Popular</button>
+    <button onclick="getMovies('top_rated')">⭐ Top Rated</button>
+    <button onclick="getMovies('upcoming')">🚀 Upcoming</button>
 </div>
-
-<h2 id="title">All Movies</h2>
 
 <div id="movies" class="movie-grid"></div>
 
+<div id="modal" class="modal" onclick="closeModal()">
+    <iframe id="trailer" src="" frameborder="0" allowfullscreen></iframe>
+</div>
+
 <script>
-    const allMovies = [
-        {title:"The White Stripes", year:1999, rating:0},
-        {title:"De Stijl", year:2000, rating:0},
-        {title:"White Blood Cells", year:2001, rating:61},
-        {title:"Elephant", year:2003, rating:6},
-        {title:"Get Behind Me Satan", year:2005, rating:3},
-        {title:"Icky Thump", year:2007, rating:2},
-        {title:"Under Great White Northern Lights", year:2010, rating:11},
-        {title:"Live in Mississippi", year:2011, rating:0},
-        {title:"Live at the Gold Dollar", year:2012, rating:0},
-        {title:"Nine Miles from the White City", year:2013, rating:0}
-    ];
 
-    function displayMovies(list) {
-        const container = document.getElementById("movies");
-        container.innerHTML = "";
+const API_KEY = "YOUR_API_KEY_HERE";
 
-        list.forEach(movie => {
-            let card = document.createElement("div");
-            card.className = "movie-card";
+const IMG_URL = "https://image.tmdb.org/t/p/w500";
+const BASE_URL = "https://api.themoviedb.org/3/movie/";
 
-            card.innerHTML = `
-                <img src="https://via.placeholder.com/300x400?text=${encodeURIComponent(movie.title)}">
-                <h3>${movie.title}</h3>
-                <p>Year: ${movie.year}</p>
-                <p>Rating: ${movie.rating}</p>
-            `;
+let currentMovies = [];
 
-            container.appendChild(card);
-        });
+// FETCH MOVIES
+async function getMovies(type) {
+    const res = await fetch(`${BASE_URL}${type}?api_key=${API_KEY}`);
+    const data = await res.json();
+
+    currentMovies = data.results;
+    displayMovies(currentMovies);
+}
+
+// DISPLAY
+function displayMovies(movies) {
+    const container = document.getElementById("movies");
+    container.innerHTML = "";
+
+    movies.forEach(movie => {
+        let card = document.createElement("div");
+        card.className = "movie-card";
+
+        card.innerHTML = `
+            <img src="${IMG_URL + movie.poster_path}">
+            <h3>${movie.title}</h3>
+        `;
+
+        card.onclick = () => playTrailer(movie.id);
+
+        container.appendChild(card);
+    });
+}
+
+// SEARCH
+document.getElementById("search").addEventListener("input", () => {
+    let value = document.getElementById("search").value.toLowerCase();
+
+    let filtered = currentMovies.filter(m =>
+        m.title.toLowerCase().includes(value)
+    );
+
+    displayMovies(filtered);
+});
+
+// TRAILER
+async function playTrailer(id) {
+    const res = await fetch(
+        `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${API_KEY}`
+    );
+    const data = await res.json();
+
+    let video = data.results.find(v => v.type === "Trailer");
+
+    if (video) {
+        document.getElementById("modal").style.display = "flex";
+        document.getElementById("trailer").src =
+            `https://www.youtube.com/embed/${video.key}`;
     }
+}
 
-    function filterMovies(type) {
-        let filtered;
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+    document.getElementById("trailer").src = "";
+}
 
-        if (type === "high") {
-            filtered = allMovies.filter(m => m.rating >= 10);
-        } else if (type === "mid") {
-            filtered = allMovies.filter(m => m.rating > 0 && m.rating < 10);
-        } else {
-            filtered = allMovies.filter(m => m.rating === 0);
-        }
+// MODE
+function toggleMode() {
+    document.body.classList.toggle("dark");
+    document.body.classList.toggle("light");
+}
 
-        displayMovies(filtered);
-        document.getElementById("title").innerText = type.toUpperCase() + " Movies";
-    }
+// LOAD DEFAULT
+getMovies("popular");
 
-    function toggleMode() {
-        document.body.classList.toggle("dark");
-        document.body.classList.toggle("light");
-    }
-
-    // AUTO LOAD (VERY IMPORTANT)
-    window.onload = function () {
-        displayMovies(allMovies);
-    };
 </script>
 
 </body>
