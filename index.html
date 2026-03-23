@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MoodFlix AI Ultimate</title>
+    <title>MoodFlix Ultimate AI</title>
 
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
@@ -12,35 +12,55 @@
 
         header { text-align:center; padding:20px; }
 
+        input {
+            padding:10px;
+            border-radius:20px;
+            border:none;
+            width:250px;
+        }
+
         button {
-            padding:10px; margin:5px;
-            border:none; border-radius:20px;
+            padding:10px;
+            margin:5px;
+            border:none;
+            border-radius:20px;
             cursor:pointer;
+            transition:0.3s;
         }
 
         body.dark button { background:#e50914; color:white; }
         body.light button { background:#ff4ecd; color:white; }
 
+        button:hover { transform:scale(1.1); }
+
         .grid {
             display:grid;
             grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
-            gap:20px; padding:20px;
+            gap:20px;
+            padding:20px;
         }
 
         .card {
-            background:#1c1c1c;
             border-radius:10px;
             overflow:hidden;
             cursor:pointer;
             transition:0.3s;
         }
 
+        body.dark .card { background:#1c1c1c; }
+        body.light .card { background:white; }
+
         .card:hover { transform:scale(1.08); }
 
-        .card img { width:100%; height:250px; object-fit:cover; }
+        .card img {
+            width:100%;
+            height:250px;
+            object-fit:cover;
+        }
 
         .modal {
-            position:fixed; top:0; left:0;
+            position:fixed;
+            top:0; left:0;
             width:100%; height:100%;
             background:rgba(0,0,0,0.8);
             display:none;
@@ -49,6 +69,12 @@
         }
 
         iframe { width:80%; height:60%; }
+
+        video {
+            display:none;
+            margin:auto;
+            border-radius:10px;
+        }
     </style>
 </head>
 
@@ -62,12 +88,12 @@
     <br><br>
 
     <button onclick="getMovies('popular')">🔥 Popular</button>
-    <button onclick="startCamera()">🎭 Detect Emotion</button>
-    <button onclick="startVoice()">🎤 Speak Mood</button>
+    <button onclick="toggleCamera()">🎭 Camera ON/OFF</button>
+    <button onclick="startVoice()">🎤 Voice Mood</button>
     <button onclick="toggleMode()">🌗 Mode</button>
 </header>
 
-<video id="video" width="300" autoplay style="display:none;"></video>
+<video id="video" width="300" autoplay></video>
 
 <div id="movies" class="grid"></div>
 
@@ -81,6 +107,9 @@ const IMG = "https://image.tmdb.org/t/p/w500";
 const BASE = "https://api.themoviedb.org/3/movie/";
 
 let currentMovies = [];
+let videoStream = null;
+let detectionInterval = null;
+let cameraOn = false;
 
 // ================= MOVIES =================
 async function getMovies(type="popular") {
@@ -143,44 +172,97 @@ function toggleMode(){
     document.body.classList.toggle("light");
 }
 
-// ================= VOICE AI =================
-function startVoice(){
-    let rec = new webkitSpeechRecognition();
-    rec.onresult = e => {
-        let text = e.results[0][0].transcript.toLowerCase();
+// ================= CAMERA TOGGLE =================
+async function toggleCamera(){
 
-        if(text.includes("happy")) getMovies("popular");
-        else if(text.includes("sad")) getMovies("top_rated");
-        else if(text.includes("angry")) getMovies("upcoming");
-        else alert("Try saying happy, sad, or angry");
-    };
-    rec.start();
+    const video = document.getElementById("video");
+
+    if(!cameraOn){
+        try{
+            videoStream = await navigator.mediaDevices.getUserMedia({video:true});
+            video.srcObject = videoStream;
+            video.style.display="block";
+            cameraOn = true;
+
+            await faceapi.nets.tinyFaceDetector.loadFromUri(
+                "https://justadudewhohacks.github.io/face-api.js/models"
+            );
+
+            detectionInterval = setInterval(async ()=>{
+                const detections = await faceapi.detectAllFaces(
+                    video,
+                    new faceapi.TinyFaceDetectorOptions()
+                );
+
+                if(detections.length > 0){
+                    getMovies("popular");
+                }
+            },2000);
+
+        }catch(err){
+            alert("Camera error ❌");
+        }
+
+    } else {
+        stopCamera();
+    }
 }
 
-// ================= FACE AI =================
-async function startCamera(){
+// STOP CAMERA
+function stopCamera(){
     const video = document.getElementById("video");
-    video.style.display="block";
 
-    const stream = await navigator.mediaDevices.getUserMedia({video:true});
-    video.srcObject = stream;
+    if(videoStream){
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+    }
 
-    await faceapi.nets.tinyFaceDetector.loadFromUri(
-        "https://justadudewhohacks.github.io/face-api.js/models"
-    );
+    if(detectionInterval){
+        clearInterval(detectionInterval);
+        detectionInterval = null;
+    }
 
-    setInterval(async ()=>{
-        const detections = await faceapi.detectAllFaces(video,new faceapi.TinyFaceDetectorOptions());
-        
-        if(detections.length > 0){
-            alert("Face detected 😄 → showing popular movies");
+    video.style.display="none";
+    cameraOn = false;
+}
+
+// ================= VOICE (IMPROVED) =================
+function startVoice(){
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if(!SpeechRecognition){
+        alert("Voice not supported in this browser");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+
+    recognition.onresult = e => {
+
+        let text = e.results[0][0].transcript.toLowerCase();
+
+        if(text.includes("happy") || text.includes("fun")){
             getMovies("popular");
         }
-    }, 3000);
+        else if(text.includes("sad") || text.includes("emotional")){
+            getMovies("top_rated");
+        }
+        else if(text.includes("action") || text.includes("angry")){
+            getMovies("upcoming");
+        }
+        else{
+            alert("Try saying: happy, sad, or action");
+        }
+    };
+
+    recognition.start();
 }
 
 // ================= INIT =================
 getMovies("popular");
+
 </script>
 
 </body>
