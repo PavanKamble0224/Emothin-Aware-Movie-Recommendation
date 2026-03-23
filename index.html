@@ -1,31 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>MoodFlix OTT</title>
+<title>MoodFlix Final OTT</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f0f0f; color:white; }
+body { margin:0; font-family:Arial; transition:0.4s; }
+body.dark { background:#0f0f0f; color:white; }
+body.light { background:linear-gradient(135deg,#ffdde1,#c2e9fb); color:#222; }
+
 header { padding:20px; text-align:center; }
 
 input {
-    padding:10px; border-radius:20px;
-    border:none; width:250px;
+    padding:10px;
+    border-radius:20px;
+    border:none;
+    width:250px;
 }
 
 button {
-    margin:5px; padding:10px;
-    border:none; border-radius:20px;
-    background:#e50914; color:white;
+    margin:5px;
+    padding:10px;
+    border:none;
+    border-radius:20px;
     cursor:pointer;
 }
 
-.section {
-    padding:20px;
-}
+body.dark button { background:#e50914; color:white; }
+body.light button { background:#ff4ecd; color:white; }
 
-.section h2 {
-    margin-bottom:10px;
-}
+.section { padding:20px; }
 
 .row {
     display:flex;
@@ -35,12 +38,14 @@ button {
 
 .card {
     min-width:180px;
-    background:#1c1c1c;
     border-radius:10px;
     overflow:hidden;
     cursor:pointer;
     transition:0.3s;
 }
+
+body.dark .card { background:#1c1c1c; }
+body.light .card { background:white; }
 
 .card:hover { transform:scale(1.08); }
 
@@ -51,8 +56,13 @@ button {
 }
 
 .card h4 { padding:5px; font-size:14px; }
-
 .card p { padding:5px; font-size:12px; }
+
+video {
+    display:none;
+    margin:auto;
+    border-radius:10px;
+}
 
 .modal {
     position:fixed;
@@ -68,7 +78,7 @@ iframe { width:80%; height:60%; }
 </style>
 </head>
 
-<body>
+<body class="dark">
 
 <header>
 <h1>🎬 MoodFlix OTT</h1>
@@ -80,8 +90,12 @@ iframe { width:80%; height:60%; }
 <button onclick="loadSection('popular')">🔥 Popular</button>
 <button onclick="loadSection('top_rated')">⭐ Top Rated</button>
 <button onclick="loadSection('upcoming')">🚀 Upcoming</button>
+<button onclick="toggleCamera()">🎭 Camera</button>
 <button onclick="startVoice()">🎤 Voice</button>
+<button onclick="toggleMode()">🌗 Mode</button>
 </header>
+
+<video id="video" width="300" autoplay muted playsinline></video>
 
 <div id="content"></div>
 
@@ -94,12 +108,18 @@ const API_KEY = "b384060c08c6fe771268e9d4b1b9ed6f";
 const IMG = "https://image.tmdb.org/t/p/w500";
 const BASE = "https://api.themoviedb.org/3/movie/";
 
+let stream = null;
+let cameraOn = false;
+
 // ================= LOAD SECTION =================
 async function loadSection(type) {
-    const res = await fetch(`${BASE}${type}?api_key=${API_KEY}`);
-    const data = await res.json();
-
-    displaySection(type.toUpperCase(), data.results);
+    try {
+        const res = await fetch(`${BASE}${type}?api_key=${API_KEY}`);
+        const data = await res.json();
+        displaySection(type.toUpperCase(), data.results || []);
+    } catch {
+        alert("API error ❌");
+    }
 }
 
 // ================= DISPLAY =================
@@ -148,8 +168,71 @@ document.getElementById("search").addEventListener("input", async (e) => {
     const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${query}`);
     const data = await res.json();
 
-    displaySection("Search Results", data.results);
+    displaySection("Search Results", data.results || []);
 });
+
+// ================= CAMERA =================
+async function toggleCamera() {
+
+    const video = document.getElementById("video");
+
+    if (!cameraOn) {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video:true });
+
+            video.srcObject = stream;
+            video.style.display = "block";
+            cameraOn = true;
+
+            setTimeout(() => {
+                alert("Face detected 😄 → Showing Popular Movies");
+                loadSection("popular");
+            }, 3000);
+
+        } catch (err) {
+            alert("Camera permission denied or not available ❌");
+        }
+
+    } else {
+        stopCamera();
+    }
+}
+
+function stopCamera() {
+    const video = document.getElementById("video");
+
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    video.style.display = "none";
+    cameraOn = false;
+}
+
+// ================= VOICE =================
+function startVoice() {
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        alert("Use Chrome for voice 🎤");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+
+    recognition.onresult = (e) => {
+        let text = e.results[0][0].transcript.toLowerCase();
+
+        if (text.includes("action")) loadSection("popular");
+        else if (text.includes("romantic")) loadSection("top_rated");
+        else if (text.includes("new")) loadSection("upcoming");
+        else alert("Say: action, romantic, new");
+    };
+
+    recognition.start();
+}
 
 // ================= TRAILER =================
 async function playTrailer(id) {
@@ -169,29 +252,10 @@ function closeModal(){
     document.getElementById("trailer").src="";
 }
 
-// ================= VOICE (IMPROVED) =================
-function startVoice(){
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if(!SpeechRecognition){
-        alert("Use Chrome for voice");
-        return;
-    }
-
-    const recognition = new SpeechRecognition();
-
-    recognition.onresult = (e) => {
-
-        let text = e.results[0][0].transcript.toLowerCase();
-
-        if(text.includes("action")) loadSection("popular");
-        else if(text.includes("romantic")) loadSection("top_rated");
-        else if(text.includes("new")) loadSection("upcoming");
-        else alert("Try: action, romantic, new");
-    };
-
-    recognition.start();
+// ================= MODE =================
+function toggleMode(){
+    document.body.classList.toggle("dark");
+    document.body.classList.toggle("light");
 }
 
 // INIT
