@@ -6,15 +6,22 @@
 </head>
 <body>
 
-<div class="container">
-    <h1>🎬 Emotion-Based Movie Recommender</h1>
+<header>
+    <h1>🎬 MoodFlix</h1>
+    <p>Choose your mood. We’ll pick your movie.</p>
+</header>
 
-    <button onclick="detectEmotion()">Detect Emotion</button>
-
-    <h2 id="emotion"></h2>
-
-    <ul id="movies"></ul>
+<div class="mood-buttons">
+    <button onclick="getMovies('romantic')">❤️ Romantic</button>
+    <button onclick="getMovies('happy')">😄 Happy</button>
+    <button onclick="getMovies('sad')">😢 Sad</button>
+    <button onclick="getMovies('action')">🔥 Action</button>
+    <button onclick="getMovies('thriller')">😱 Thriller</button>
 </div>
+
+<h2 id="title"></h2>
+
+<div id="movies" class="movie-grid"></div>
 
 <script src="script.js"></script>
 
