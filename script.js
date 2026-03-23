@@ -1,64 +1,143 @@
-// DATASET (your file converted inside JS)
-const allMovies = [
-    {title:"The White Stripes", year:1999, rating:0},
-    {title:"De Stijl", year:2000, rating:0},
-    {title:"White Blood Cells", year:2001, rating:61},
-    {title:"Elephant", year:2003, rating:6},
-    {title:"Get Behind Me Satan", year:2005, rating:3},
-    {title:"Icky Thump", year:2007, rating:2},
-    {title:"Under Great White Northern Lights", year:2010, rating:11},
-    {title:"Live in Mississippi", year:2011, rating:0},
-    {title:"Live at the Gold Dollar", year:2012, rating:0},
-    {title:"Nine Miles from the White City", year:2013, rating:0}
-];
+// ==========================
+// CONFIG
+// ==========================
+const API_KEY = "b384060c08c6fe771268e9d4b1b9ed6f";  // 👈 ADD YOUR KEY
+const BASE_URL = "https://api.themoviedb.org/3/movie/";
+const IMG_URL = "https://image.tmdb.org/t/p/w500";
 
-// FILTER FUNCTION
-function filterMovies(type) {
+// ==========================
+// GLOBAL STATE
+// ==========================
+let currentMovies = [];
 
-    let filtered = [];
+// ==========================
+// FETCH MOVIES (SAFE)
+// ==========================
+async function getMovies(type = "popular") {
 
-    if (type === "high") {
-        filtered = allMovies.filter(m => m.rating >= 10);
-    } else if (type === "mid") {
-        filtered = allMovies.filter(m => m.rating > 0 && m.rating < 10);
-    } else {
-        filtered = allMovies.filter(m => m.rating === 0);
+    const container = document.getElementById("movies");
+    container.innerHTML = "<h2 style='text-align:center'>Loading...</h2>";
+
+    try {
+        const response = await fetch(
+            `${BASE_URL}${type}?api_key=${API_KEY}`
+        );
+
+        if (!response.ok) {
+            throw new Error("API ERROR");
+        }
+
+        const data = await response.json();
+
+        currentMovies = data.results || [];
+
+        if (currentMovies.length === 0) {
+            container.innerHTML = "<h2>No movies found</h2>";
+            return;
+        }
+
+        displayMovies(currentMovies);
+
+    } catch (error) {
+        console.error(error);
+
+        container.innerHTML = `
+            <h2 style="text-align:center; color:red;">
+                Failed to load movies ❌ <br>
+                Check your API key or internet
+            </h2>
+        `;
     }
-
-    displayMovies(filtered);
-    document.getElementById("title").innerText =
-        "Showing " + type.toUpperCase() + " Picks";
 }
 
-// DISPLAY FUNCTION
-function displayMovies(list) {
+// ==========================
+// DISPLAY MOVIES
+// ==========================
+function displayMovies(movies) {
 
     const container = document.getElementById("movies");
     container.innerHTML = "";
 
-    list.forEach(movie => {
+    movies.forEach(movie => {
 
-        let card = document.createElement("div");
-        card.classList.add("movie-card");
+        const poster = movie.poster_path
+            ? IMG_URL + movie.poster_path
+            : "https://via.placeholder.com/300x400?text=No+Image";
+
+        const card = document.createElement("div");
+        card.className = "movie-card";
 
         card.innerHTML = `
-            <img src="https://via.placeholder.com/300x400?text=${movie.title}">
+            <img src="${poster}">
             <h3>${movie.title}</h3>
-            <p>Year: ${movie.year}</p>
-            <p>Rating: ${movie.rating}</p>
         `;
+
+        card.onclick = () => playTrailer(movie.id);
 
         container.appendChild(card);
     });
 }
 
-// DEFAULT LOAD (IMPORTANT FIX)
-window.onload = () => {
-    displayMovies(allMovies);
-};
+// ==========================
+// SEARCH FUNCTION
+// ==========================
+document.getElementById("search")?.addEventListener("input", () => {
 
-// MODE TOGGLE
+    const value = document.getElementById("search").value.toLowerCase();
+
+    const filtered = currentMovies.filter(movie =>
+        movie.title.toLowerCase().includes(value)
+    );
+
+    displayMovies(filtered);
+});
+
+// ==========================
+// TRAILER FUNCTION
+// ==========================
+async function playTrailer(id) {
+
+    try {
+        const res = await fetch(
+            `https://api.themoviedb.org/3/movie/${id}/videos?api_key=${API_KEY}`
+        );
+
+        const data = await res.json();
+
+        const trailer = data.results.find(v => v.type === "Trailer");
+
+        if (trailer) {
+            document.getElementById("modal").style.display = "flex";
+            document.getElementById("trailer").src =
+                `https://www.youtube.com/embed/${trailer.key}`;
+        } else {
+            alert("Trailer not available 😅");
+        }
+
+    } catch (err) {
+        alert("Error loading trailer");
+    }
+}
+
+// ==========================
+// CLOSE MODAL
+// ==========================
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+    document.getElementById("trailer").src = "";
+}
+
+// ==========================
+// DARK / LIGHT MODE
+// ==========================
 function toggleMode() {
     document.body.classList.toggle("dark");
     document.body.classList.toggle("light");
 }
+
+// ==========================
+// LOAD DEFAULT (IMPORTANT)
+// ==========================
+window.onload = () => {
+    getMovies("popular");
+};
