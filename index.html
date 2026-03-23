@@ -1,161 +1,228 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>MoodFlix OTT</title>
+    <title>MoodFlix AI Final</title>
 
-<style>
-body { margin:0; font-family:Arial; background:#0f0f0f; color:white; }
-header { padding:20px; text-align:center; }
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
-input {
-    padding:10px; border-radius:20px;
-    border:none; width:250px;
-}
+    <style>
+        body { margin:0; font-family:Arial; transition:0.4s; }
+        body.dark { background:#0f0f0f; color:white; }
+        body.light { background:linear-gradient(135deg,#ffdde1,#c2e9fb); color:#222; }
 
-button {
-    margin:5px; padding:10px;
-    border:none; border-radius:20px;
-    background:#e50914; color:white;
-    cursor:pointer;
-}
+        header { text-align:center; padding:20px; }
 
-.section {
-    padding:20px;
-}
+        input {
+            padding:10px;
+            border-radius:20px;
+            border:none;
+            width:250px;
+        }
 
-.section h2 {
-    margin-bottom:10px;
-}
+        button {
+            padding:10px;
+            margin:5px;
+            border:none;
+            border-radius:20px;
+            cursor:pointer;
+        }
 
-.row {
-    display:flex;
-    overflow-x:auto;
-    gap:15px;
-}
+        body.dark button { background:#e50914; color:white; }
+        body.light button { background:#ff4ecd; color:white; }
 
-.card {
-    min-width:180px;
-    background:#1c1c1c;
-    border-radius:10px;
-    overflow:hidden;
-    cursor:pointer;
-    transition:0.3s;
-}
+        .grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+            gap:20px;
+            padding:20px;
+        }
 
-.card:hover { transform:scale(1.08); }
+        .card {
+            border-radius:10px;
+            overflow:hidden;
+            cursor:pointer;
+            transition:0.3s;
+        }
 
-.card img {
-    width:100%;
-    height:250px;
-    object-fit:cover;
-}
+        body.dark .card { background:#1c1c1c; }
+        body.light .card { background:white; }
 
-.card h4 { padding:5px; font-size:14px; }
+        .card:hover { transform:scale(1.08); }
 
-.card p { padding:5px; font-size:12px; }
+        .card img {
+            width:100%;
+            height:250px;
+            object-fit:cover;
+        }
 
-.modal {
-    position:fixed;
-    top:0; left:0;
-    width:100%; height:100%;
-    background:rgba(0,0,0,0.9);
-    display:none;
-    justify-content:center;
-    align-items:center;
-}
+        video {
+            display:none;
+            margin:auto;
+            border-radius:10px;
+        }
 
-iframe { width:80%; height:60%; }
-</style>
+        .modal {
+            position:fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background:rgba(0,0,0,0.8);
+            display:none;
+            justify-content:center;
+            align-items:center;
+        }
+
+        iframe { width:80%; height:60%; }
+    </style>
 </head>
 
-<body>
+<body class="dark">
 
 <header>
-<h1>🎬 MoodFlix OTT</h1>
+    <h1>🎬 MoodFlix AI</h1>
 
-<input id="search" placeholder="Search movies...">
+    <input id="search" placeholder="Search movie...">
 
-<br><br>
+    <br><br>
 
-<button onclick="loadSection('popular')">🔥 Popular</button>
-<button onclick="loadSection('top_rated')">⭐ Top Rated</button>
-<button onclick="loadSection('upcoming')">🚀 Upcoming</button>
-<button onclick="startVoice()">🎤 Voice</button>
+    <button onclick="getMovies('popular')">🔥 Popular</button>
+    <button onclick="toggleCamera()">🎭 Camera</button>
+    <button onclick="startVoice()">🎤 Voice</button>
+    <button onclick="toggleMode()">🌗 Mode</button>
 </header>
 
-<div id="content"></div>
+<video id="video" width="300" autoplay muted playsinline></video>
+
+<div id="movies" class="grid"></div>
 
 <div id="modal" class="modal" onclick="closeModal()">
-<iframe id="trailer"></iframe>
+    <iframe id="trailer"></iframe>
 </div>
 
 <script>
-const API_KEY = "YOUR_API_KEY_HERE";
+const API_KEY = "PUT_YOUR_API_KEY_HERE";
 const IMG = "https://image.tmdb.org/t/p/w500";
 const BASE = "https://api.themoviedb.org/3/movie/";
 
-// ================= LOAD SECTION =================
-async function loadSection(type) {
-    const res = await fetch(`${BASE}${type}?api_key=${API_KEY}`);
-    const data = await res.json();
+let currentMovies = [];
+let stream = null;
+let cameraOn = false;
 
-    displaySection(type.toUpperCase(), data.results);
+// ================= MOVIES =================
+async function getMovies(type="popular") {
+    try{
+        const res = await fetch(`${BASE}${type}?api_key=${API_KEY}`);
+        const data = await res.json();
+        currentMovies = data.results || [];
+        showMovies(currentMovies);
+    }catch{
+        alert("Movie API error ❌");
+    }
 }
 
-// ================= DISPLAY =================
-function displaySection(title, movies) {
-
-    let html = `
-    <div class="section">
-        <h2>${title}</h2>
-        <div class="row">
-    `;
-
+function showMovies(movies) {
+    let html = "";
     movies.forEach(m => {
-
-        let age = getAgeRating(m.vote_average);
-
         html += `
         <div class="card" onclick="playTrailer(${m.id})">
             <img src="${IMG + m.poster_path}">
             <h4>${m.title}</h4>
-            <p>⭐ ${m.vote_average}</p>
-            <p>${age}</p>
-            <p>${m.overview.substring(0,80)}...</p>
-        </div>
-        `;
+        </div>`;
     });
-
-    html += `</div></div>`;
-
-    document.getElementById("content").innerHTML = html;
-}
-
-// ================= AGE CATEGORY =================
-function getAgeRating(rating) {
-    if (rating >= 8) return "🔞 18+";
-    if (rating >= 6) return "16+";
-    return "13+";
+    document.getElementById("movies").innerHTML = html;
 }
 
 // ================= SEARCH =================
-document.getElementById("search").addEventListener("input", async (e) => {
-
-    let query = e.target.value;
-
-    if(query.length < 2) return;
-
-    const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${query}`);
-    const data = await res.json();
-
-    displaySection("Search Results", data.results);
+document.getElementById("search").addEventListener("input", e => {
+    let val = e.target.value.toLowerCase();
+    let filtered = currentMovies.filter(m => m.title.toLowerCase().includes(val));
+    showMovies(filtered);
 });
+
+// ================= CAMERA FIX =================
+async function toggleCamera() {
+
+    const video = document.getElementById("video");
+
+    if (!cameraOn) {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user" },
+                audio: false
+            });
+
+            video.srcObject = stream;
+            video.style.display = "block";
+            cameraOn = true;
+
+        } catch (err) {
+            console.error(err);
+
+            if (err.name === "NotAllowedError") {
+                alert("Camera permission denied ❌");
+            } else if (err.name === "NotFoundError") {
+                alert("No camera found ❌");
+            } else {
+                alert("Camera not supported or in use ❌");
+            }
+        }
+
+    } else {
+        stopCamera();
+    }
+}
+
+// STOP CAMERA
+function stopCamera() {
+    const video = document.getElementById("video");
+
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    video.style.display = "none";
+    cameraOn = false;
+}
+
+// ================= VOICE FIX =================
+function startVoice() {
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        alert("Use Chrome for voice feature 🎤");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => {
+        console.log("Voice started...");
+    };
+
+    recognition.onresult = (e) => {
+        let text = e.results[0][0].transcript.toLowerCase();
+
+        console.log("You said:", text);
+
+        if (text.includes("happy")) getMovies("popular");
+        else if (text.includes("sad")) getMovies("top_rated");
+        else if (text.includes("action")) getMovies("upcoming");
+        else alert("Try: happy, sad, action");
+    };
+
+    recognition.onerror = () => {
+        alert("Voice error ❌");
+    };
+
+    recognition.start();
+}
 
 // ================= TRAILER =================
 async function playTrailer(id) {
     const res = await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${API_KEY}`);
     const data = await res.json();
-
     let v = data.results.find(x => x.type === "Trailer");
 
     if(v){
@@ -169,33 +236,15 @@ function closeModal(){
     document.getElementById("trailer").src="";
 }
 
-// ================= VOICE (IMPROVED) =================
-function startVoice(){
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if(!SpeechRecognition){
-        alert("Use Chrome for voice");
-        return;
-    }
-
-    const recognition = new SpeechRecognition();
-
-    recognition.onresult = (e) => {
-
-        let text = e.results[0][0].transcript.toLowerCase();
-
-        if(text.includes("action")) loadSection("popular");
-        else if(text.includes("romantic")) loadSection("top_rated");
-        else if(text.includes("new")) loadSection("upcoming");
-        else alert("Try: action, romantic, new");
-    };
-
-    recognition.start();
+// ================= MODE =================
+function toggleMode(){
+    document.body.classList.toggle("dark");
+    document.body.classList.toggle("light");
 }
 
 // INIT
-loadSection("popular");
+getMovies("popular");
+
 </script>
 
 </body>
