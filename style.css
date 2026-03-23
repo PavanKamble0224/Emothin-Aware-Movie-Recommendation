@@ -1,30 +1,69 @@
 body {
-    font-family: Arial;
-    background: linear-gradient(to right, #667eea, #764ba2);
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background-color: #141414;
     color: white;
-    text-align: center;
 }
 
-.container {
-    margin-top: 100px;
+/* HEADER */
+header {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(to right, #000000, #1c1c1c);
+}
+
+/* BUTTONS */
+.mood-buttons {
+    text-align: center;
+    margin: 20px;
 }
 
 button {
-    padding: 12px 25px;
-    font-size: 18px;
+    margin: 10px;
+    padding: 12px 20px;
     border: none;
-    background: #ff9800;
+    background: #e50914;
     color: white;
+    font-size: 16px;
+    border-radius: 20px;
     cursor: pointer;
-    border-radius: 6px;
+    transition: 0.3s;
 }
 
 button:hover {
-    background: #e68900;
+    background: #ff1e2d;
+    transform: scale(1.1);
 }
 
-ul {
-    list-style: none;
-    padding: 0;
-    font-size: 18px;
+/* GRID */
+.movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+/* MOVIE CARD */
+.movie-card {
+    background: #1c1c1c;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: transform 0.3s;
+}
+
+.movie-card:hover {
+    transform: scale(1.1);
+}
+
+/* IMAGE */
+.movie-card img {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+}
+
+/* TITLE */
+.movie-card h3 {
+    padding: 10px;
+    font-size: 14px;
 }
