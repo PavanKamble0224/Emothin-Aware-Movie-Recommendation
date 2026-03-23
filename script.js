@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_KEY = "b384060c08c6fe771268e9d4b1b9ed6f";  // 👈 ADD YOUR KEY
+const API_KEY = "b384060c08c6fe771268e9d4b1b9ed6f";
 const BASE_URL = "https://api.themoviedb.org/3/movie/";
 const IMG_URL = "https://image.tmdb.org/t/p/w500";
 
@@ -9,9 +9,11 @@ const IMG_URL = "https://image.tmdb.org/t/p/w500";
 // GLOBAL STATE
 // ==========================
 let currentMovies = [];
+let stream = null;
+let cameraOn = false;
 
 // ==========================
-// FETCH MOVIES (SAFE)
+// FETCH MOVIES
 // ==========================
 async function getMovies(type = "popular") {
 
@@ -19,39 +21,20 @@ async function getMovies(type = "popular") {
     container.innerHTML = "<h2 style='text-align:center'>Loading...</h2>";
 
     try {
-        const response = await fetch(
-            `${BASE_URL}${type}?api_key=${API_KEY}`
-        );
-
-        if (!response.ok) {
-            throw new Error("API ERROR");
-        }
-
+        const response = await fetch(`${BASE_URL}${type}?api_key=${API_KEY}`);
         const data = await response.json();
 
         currentMovies = data.results || [];
 
-        if (currentMovies.length === 0) {
-            container.innerHTML = "<h2>No movies found</h2>";
-            return;
-        }
-
         displayMovies(currentMovies);
 
     } catch (error) {
-        console.error(error);
-
-        container.innerHTML = `
-            <h2 style="text-align:center; color:red;">
-                Failed to load movies ❌ <br>
-                Check your API key or internet
-            </h2>
-        `;
+        container.innerHTML = "<h2 style='color:red'>Error loading movies ❌</h2>";
     }
 }
 
 // ==========================
-// DISPLAY MOVIES
+// DISPLAY MOVIES (UPGRADED)
 // ==========================
 function displayMovies(movies) {
 
@@ -64,12 +47,18 @@ function displayMovies(movies) {
             ? IMG_URL + movie.poster_path
             : "https://via.placeholder.com/300x400?text=No+Image";
 
+        const rating = movie.vote_average || "N/A";
+        const desc = movie.overview ? movie.overview.substring(0, 80) : "No description";
+
         const card = document.createElement("div");
         card.className = "movie-card";
 
         card.innerHTML = `
             <img src="${poster}">
             <h3>${movie.title}</h3>
+            <p>⭐ ${rating}</p>
+            <p>${getAgeRating(rating)}</p>
+            <p>${desc}...</p>
         `;
 
         card.onclick = () => playTrailer(movie.id);
@@ -79,7 +68,16 @@ function displayMovies(movies) {
 }
 
 // ==========================
-// SEARCH FUNCTION
+// AGE CATEGORY
+// ==========================
+function getAgeRating(rating) {
+    if (rating >= 8) return "🔞 18+";
+    if (rating >= 6) return "16+";
+    return "13+";
+}
+
+// ==========================
+// SEARCH
 // ==========================
 document.getElementById("search")?.addEventListener("input", () => {
 
@@ -93,7 +91,7 @@ document.getElementById("search")?.addEventListener("input", () => {
 });
 
 // ==========================
-// TRAILER FUNCTION
+// TRAILER
 // ==========================
 async function playTrailer(id) {
 
@@ -114,7 +112,7 @@ async function playTrailer(id) {
             alert("Trailer not available 😅");
         }
 
-    } catch (err) {
+    } catch {
         alert("Error loading trailer");
     }
 }
@@ -136,7 +134,98 @@ function toggleMode() {
 }
 
 // ==========================
-// LOAD DEFAULT (IMPORTANT)
+// 🧠 AI EMOTION LOGIC
+// ==========================
+function detectEmotion(text) {
+
+    text = text.toLowerCase();
+
+    if (text.includes("sad")) return "top_rated";
+    if (text.includes("happy") || text.includes("fun")) return "popular";
+    if (text.includes("action") || text.includes("angry")) return "upcoming";
+    if (text.includes("romantic") || text.includes("love")) return "top_rated";
+
+    return "popular";
+}
+
+// ==========================
+// 🎤 VOICE (UPGRADED)
+// ==========================
+function startVoice() {
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SR) {
+        alert("Use Chrome for voice 🎤");
+        return;
+    }
+
+    const recognition = new SR();
+    recognition.lang = "en-US";
+
+    recognition.onresult = (e) => {
+
+        let text = e.results[0][0].transcript;
+
+        console.log("You said:", text);
+
+        let type = detectEmotion(text);
+
+        getMovies(type);
+
+        // optional UI feedback
+        document.getElementById("emotionText") &&
+        (document.getElementById("emotionText").innerText =
+            "Detected: " + text);
+    };
+
+    recognition.start();
+}
+
+// ==========================
+// 🎭 CAMERA (SAFE VERSION)
+// ==========================
+async function toggleCamera() {
+
+    const video = document.getElementById("video");
+
+    if (!cameraOn) {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+            video.srcObject = stream;
+            video.style.display = "block";
+            cameraOn = true;
+
+            // simulate detection
+            setTimeout(() => {
+                getMovies("popular");
+            }, 3000);
+
+        } catch {
+            alert("Camera permission denied ❌");
+        }
+
+    } else {
+        stopCamera();
+    }
+}
+
+function stopCamera() {
+
+    const video = document.getElementById("video");
+
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    video.style.display = "none";
+    cameraOn = false;
+}
+
+// ==========================
+// INIT
 // ==========================
 window.onload = () => {
     getMovies("popular");
