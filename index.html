@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MoodFlix Ultimate AI</title>
+    <title>MoodFlix AI Final</title>
 
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
@@ -25,13 +25,10 @@
             border:none;
             border-radius:20px;
             cursor:pointer;
-            transition:0.3s;
         }
 
         body.dark button { background:#e50914; color:white; }
         body.light button { background:#ff4ecd; color:white; }
-
-        button:hover { transform:scale(1.1); }
 
         .grid {
             display:grid;
@@ -58,6 +55,12 @@
             object-fit:cover;
         }
 
+        video {
+            display:none;
+            margin:auto;
+            border-radius:10px;
+        }
+
         .modal {
             position:fixed;
             top:0; left:0;
@@ -69,31 +72,25 @@
         }
 
         iframe { width:80%; height:60%; }
-
-        video {
-            display:none;
-            margin:auto;
-            border-radius:10px;
-        }
     </style>
 </head>
 
 <body class="dark">
 
 <header>
-    <h1>🎬 MoodFlix AI Ultimate</h1>
+    <h1>🎬 MoodFlix AI</h1>
 
     <input id="search" placeholder="Search movie...">
 
     <br><br>
 
     <button onclick="getMovies('popular')">🔥 Popular</button>
-    <button onclick="toggleCamera()">🎭 Camera ON/OFF</button>
-    <button onclick="startVoice()">🎤 Voice Mood</button>
+    <button onclick="toggleCamera()">🎭 Camera</button>
+    <button onclick="startVoice()">🎤 Voice</button>
     <button onclick="toggleMode()">🌗 Mode</button>
 </header>
 
-<video id="video" width="300" autoplay></video>
+<video id="video" width="300" autoplay muted playsinline></video>
 
 <div id="movies" class="grid"></div>
 
@@ -102,21 +99,24 @@
 </div>
 
 <script>
-const API_KEY = "b384060c08c6fe771268e9d4b1b9ed6f";
+const API_KEY = "PUT_YOUR_API_KEY_HERE";
 const IMG = "https://image.tmdb.org/t/p/w500";
 const BASE = "https://api.themoviedb.org/3/movie/";
 
 let currentMovies = [];
-let videoStream = null;
-let detectionInterval = null;
+let stream = null;
 let cameraOn = false;
 
 // ================= MOVIES =================
 async function getMovies(type="popular") {
-    const res = await fetch(`${BASE}${type}?api_key=${API_KEY}`);
-    const data = await res.json();
-    currentMovies = data.results;
-    showMovies(currentMovies);
+    try{
+        const res = await fetch(`${BASE}${type}?api_key=${API_KEY}`);
+        const data = await res.json();
+        currentMovies = data.results || [];
+        showMovies(currentMovies);
+    }catch{
+        alert("Movie API error ❌");
+    }
 }
 
 function showMovies(movies) {
@@ -126,7 +126,6 @@ function showMovies(movies) {
         <div class="card" onclick="playTrailer(${m.id})">
             <img src="${IMG + m.poster_path}">
             <h4>${m.title}</h4>
-            <button onclick="saveFav(event, ${m.id})">❤️</button>
         </div>`;
     });
     document.getElementById("movies").innerHTML = html;
@@ -139,11 +138,93 @@ document.getElementById("search").addEventListener("input", e => {
     showMovies(filtered);
 });
 
+// ================= CAMERA FIX =================
+async function toggleCamera() {
+
+    const video = document.getElementById("video");
+
+    if (!cameraOn) {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user" },
+                audio: false
+            });
+
+            video.srcObject = stream;
+            video.style.display = "block";
+            cameraOn = true;
+
+        } catch (err) {
+            console.error(err);
+
+            if (err.name === "NotAllowedError") {
+                alert("Camera permission denied ❌");
+            } else if (err.name === "NotFoundError") {
+                alert("No camera found ❌");
+            } else {
+                alert("Camera not supported or in use ❌");
+            }
+        }
+
+    } else {
+        stopCamera();
+    }
+}
+
+// STOP CAMERA
+function stopCamera() {
+    const video = document.getElementById("video");
+
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    video.style.display = "none";
+    cameraOn = false;
+}
+
+// ================= VOICE FIX =================
+function startVoice() {
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        alert("Use Chrome for voice feature 🎤");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => {
+        console.log("Voice started...");
+    };
+
+    recognition.onresult = (e) => {
+        let text = e.results[0][0].transcript.toLowerCase();
+
+        console.log("You said:", text);
+
+        if (text.includes("happy")) getMovies("popular");
+        else if (text.includes("sad")) getMovies("top_rated");
+        else if (text.includes("action")) getMovies("upcoming");
+        else alert("Try: happy, sad, action");
+    };
+
+    recognition.onerror = () => {
+        alert("Voice error ❌");
+    };
+
+    recognition.start();
+}
+
 // ================= TRAILER =================
 async function playTrailer(id) {
     const res = await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${API_KEY}`);
     const data = await res.json();
     let v = data.results.find(x => x.type === "Trailer");
+
     if(v){
         document.getElementById("modal").style.display="flex";
         document.getElementById("trailer").src=`https://youtube.com/embed/${v.key}`;
@@ -155,112 +236,13 @@ function closeModal(){
     document.getElementById("trailer").src="";
 }
 
-// ================= FAVORITES =================
-function saveFav(e, id){
-    e.stopPropagation();
-    let favs = JSON.parse(localStorage.getItem("favs") || "[]");
-    if(!favs.includes(id)){
-        favs.push(id);
-        localStorage.setItem("favs", JSON.stringify(favs));
-        alert("Added to favorites ❤️");
-    }
-}
-
 // ================= MODE =================
 function toggleMode(){
     document.body.classList.toggle("dark");
     document.body.classList.toggle("light");
 }
 
-// ================= CAMERA TOGGLE =================
-async function toggleCamera(){
-
-    const video = document.getElementById("video");
-
-    if(!cameraOn){
-        try{
-            videoStream = await navigator.mediaDevices.getUserMedia({video:true});
-            video.srcObject = videoStream;
-            video.style.display="block";
-            cameraOn = true;
-
-            await faceapi.nets.tinyFaceDetector.loadFromUri(
-                "https://justadudewhohacks.github.io/face-api.js/models"
-            );
-
-            detectionInterval = setInterval(async ()=>{
-                const detections = await faceapi.detectAllFaces(
-                    video,
-                    new faceapi.TinyFaceDetectorOptions()
-                );
-
-                if(detections.length > 0){
-                    getMovies("popular");
-                }
-            },2000);
-
-        }catch(err){
-            alert("Camera error ❌");
-        }
-
-    } else {
-        stopCamera();
-    }
-}
-
-// STOP CAMERA
-function stopCamera(){
-    const video = document.getElementById("video");
-
-    if(videoStream){
-        videoStream.getTracks().forEach(track => track.stop());
-        videoStream = null;
-    }
-
-    if(detectionInterval){
-        clearInterval(detectionInterval);
-        detectionInterval = null;
-    }
-
-    video.style.display="none";
-    cameraOn = false;
-}
-
-// ================= VOICE (IMPROVED) =================
-function startVoice(){
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if(!SpeechRecognition){
-        alert("Voice not supported in this browser");
-        return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-
-    recognition.onresult = e => {
-
-        let text = e.results[0][0].transcript.toLowerCase();
-
-        if(text.includes("happy") || text.includes("fun")){
-            getMovies("popular");
-        }
-        else if(text.includes("sad") || text.includes("emotional")){
-            getMovies("top_rated");
-        }
-        else if(text.includes("action") || text.includes("angry")){
-            getMovies("upcoming");
-        }
-        else{
-            alert("Try saying: happy, sad, or action");
-        }
-    };
-
-    recognition.start();
-}
-
-// ================= INIT =================
+// INIT
 getMovies("popular");
 
 </script>
