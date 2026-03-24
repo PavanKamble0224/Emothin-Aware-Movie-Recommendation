@@ -1,28 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>EmoPlay Pro</title>
+<title>EmoPlay</title>
 
 <style>
 body { margin:0; font-family:Arial; transition:0.4s; }
 body.dark { background:#0f0f0f; color:white; }
 body.light { background:linear-gradient(135deg,#ffdde1,#c2e9fb); color:#222; }
 
+/* HEADER GRID */
 header {
-    display:flex;
-    justify-content:space-between;
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
     align-items:center;
-    padding:15px 30px;
+    padding:15px 20px;
 }
 
-.logo { font-size:24px; font-weight:bold; }
+/* LEFT PANEL */
+.left-panel {
+    display:flex;
+    flex-direction:column;
+}
 
+/* USERNAME */
+#userDisplay {
+    font-weight:bold;
+    margin-bottom:5px;
+}
+
+/* CENTER LOGO */
+.logo {
+    text-align:center;
+    font-size:24px;
+    font-weight:bold;
+}
+
+/* RIGHT PANEL */
+.right-panel {
+    text-align:right;
+}
+
+/* INPUT */
 input {
     padding:8px;
     border-radius:20px;
     border:none;
 }
 
+/* BUTTON */
 button {
     padding:8px 12px;
     border:none;
@@ -31,24 +56,30 @@ button {
     margin-left:5px;
 }
 
-.hero {
-    height:300px;
+/* HERO SCROLL */
+.hero-row {
     display:flex;
-    align-items:end;
-    padding:20px;
+    overflow-x:auto;
+    gap:15px;
+    padding:15px;
+}
+
+.hero-card {
+    min-width:300px;
+    height:180px;
+    border-radius:10px;
     background-size:cover;
     background-position:center;
 }
 
-.section { padding:20px; }
-
+/* MOVIES */
 .row {
     display:flex;
     overflow-x:auto;
     gap:15px;
+    padding:20px;
 }
 
-/* MOVIE CARD */
 .card {
     position:relative;
     min-width:180px;
@@ -61,10 +92,7 @@ button {
 body.dark .card { background:#1c1c1c; }
 body.light .card { background:white; }
 
-.card:hover {
-    transform:scale(1.1);
-    z-index:2;
-}
+.card:hover { transform:scale(1.1); }
 
 .card img {
     width:100%;
@@ -85,14 +113,10 @@ body.light .card { background:white; }
     display:none;
 }
 
-.card:hover .play-btn {
-    display:block;
-}
+.card:hover .play-btn { display:block; }
 
 /* INFO */
-.info {
-    padding:8px;
-}
+.info { padding:8px; }
 
 .badge {
     font-size:10px;
@@ -105,10 +129,7 @@ body.light .card { background:white; }
 .age { background:#e50914; color:white; }
 .genre { background:#00c853; color:white; }
 
-video {
-    display:none;
-    margin:auto;
-}
+video { display:none; }
 
 .modal {
     position:fixed;
@@ -126,27 +147,38 @@ iframe { width:80%; height:60%; }
 
 <body class="dark">
 
-<!-- LOGIN -->
-<div style="text-align:center;">
+<header>
+
+<!-- LEFT -->
+<div class="left-panel">
+
+<div id="authBox">
 <input id="username" placeholder="Username">
 <button onclick="login()">Login</button>
-<button onclick="logout()">Logout</button>
-<p id="userStatus"></p>
 </div>
 
-<header>
-<div class="logo">🎬 EmoPlay</div>
+<div id="userDisplay"></div>
 
 <input id="search" placeholder="Search...">
 
-<div>
+</div>
+
+<!-- CENTER -->
+<div class="logo">🎬 EmoPlay</div>
+
+<!-- RIGHT -->
+<div class="right-panel">
 <button onclick="toggleCamera()">🎭</button>
 <button onclick="startVoice()">🎤</button>
 <button onclick="toggleMode()">🌗</button>
 </div>
+
 </header>
 
-<div id="hero" class="hero"></div>
+<!-- HERO SCROLL -->
+<div id="heroRow" class="hero-row"></div>
+
+<!-- MOVIES -->
 <div id="content"></div>
 
 <video id="video" width="300" autoplay muted></video>
@@ -171,34 +203,42 @@ let stream=null, cameraOn=false, currentMovies=[];
 function login(){
     let u=document.getElementById("username").value;
     if(!u) return alert("Enter username");
+
     localStorage.setItem("user",u);
     updateUser();
 }
-function logout(){
-    localStorage.removeItem("user");
-    updateUser();
-}
+
 function updateUser(){
     let u=localStorage.getItem("user");
-    document.getElementById("userStatus").innerText =
-        u ? "Logged in: "+u : "Not logged in";
+
+    if(u){
+        document.getElementById("authBox").style.display="none";
+        document.getElementById("userDisplay").innerText="👤 "+u;
+    }
 }
 updateUser();
 
-// HERO
-function setHero(m){
-    document.getElementById("hero").style.backgroundImage =
-        `url(${IMG+m.backdrop_path})`;
+// HERO (SCROLLABLE)
+async function loadHero(){
+    const res=await fetch(`${BASE}popular?api_key=${API_KEY}`);
+    const data=await res.json();
+
+    let html="";
+    data.results.slice(0,10).forEach(m=>{
+        html+=`
+        <div class="hero-card"
+        style="background-image:url(${IMG+m.backdrop_path})"></div>`;
+    });
+
+    document.getElementById("heroRow").innerHTML=html;
 }
 
-// LOAD
+// LOAD MOVIES
 async function loadSection(type){
     const res=await fetch(`${BASE}${type}?api_key=${API_KEY}`);
     const data=await res.json();
 
     currentMovies=data.results;
-    setHero(currentMovies[0]);
-
     display(currentMovies);
 }
 
@@ -270,19 +310,15 @@ async function toggleCamera(){
     let v=document.getElementById("video");
 
     if(!cameraOn){
-        try{
-            stream=await navigator.mediaDevices.getUserMedia({video:true});
-            v.srcObject=stream;
-            v.style.display="block";
-            cameraOn=true;
-            setTimeout(()=>loadSection("popular"),3000);
-        }catch{ alert("Camera error ❌"); }
-    } else stopCamera();
-}
-function stopCamera(){
-    if(stream) stream.getTracks().forEach(t=>t.stop());
-    video.style.display="none";
-    cameraOn=false;
+        stream=await navigator.mediaDevices.getUserMedia({video:true});
+        v.srcObject=stream;
+        v.style.display="block";
+        cameraOn=true;
+    } else {
+        stream.getTracks().forEach(t=>t.stop());
+        v.style.display="none";
+        cameraOn=false;
+    }
 }
 
 // VOICE
@@ -307,6 +343,7 @@ function toggleMode(){
 }
 
 // INIT
+loadHero();
 loadSection("popular");
 </script>
 
