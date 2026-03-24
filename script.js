@@ -6,6 +6,19 @@ const BASE_URL = "https://api.themoviedb.org/3/movie/";
 const IMG_URL = "https://image.tmdb.org/t/p/w500";
 
 // ==========================
+// GENRE MAP (REAL)
+// ==========================
+const GENRE_MAP = {
+    28: "Action",
+    35: "Comedy",
+    18: "Drama",
+    27: "Horror",
+    10749: "Romance",
+    53: "Thriller",
+    878: "Sci-Fi"
+};
+
+// ==========================
 // GLOBAL STATE
 // ==========================
 let currentMovies = [];
@@ -21,20 +34,19 @@ async function getMovies(type = "popular") {
     container.innerHTML = "<h2 style='text-align:center'>Loading...</h2>";
 
     try {
-        const response = await fetch(`${BASE_URL}${type}?api_key=${API_KEY}`);
-        const data = await response.json();
+        const res = await fetch(`${BASE_URL}${type}?api_key=${API_KEY}`);
+        const data = await res.json();
 
         currentMovies = data.results || [];
-
         displayMovies(currentMovies);
 
-    } catch (error) {
+    } catch {
         container.innerHTML = "<h2 style='color:red'>Error loading movies ❌</h2>";
     }
 }
 
 // ==========================
-// DISPLAY MOVIES (UPGRADED)
+// DISPLAY MOVIES (PRO VERSION)
 // ==========================
 function displayMovies(movies) {
 
@@ -47,27 +59,40 @@ function displayMovies(movies) {
             ? IMG_URL + movie.poster_path
             : "https://via.placeholder.com/300x400?text=No+Image";
 
-        const rating = movie.vote_average ? movie.vote_average.toFixed(1) : "N/A";
-        const year = movie.release_date ? movie.release_date.split("-")[0] : "N/A";
-        const desc = movie.overview ? movie.overview.substring(0, 60) : "No description";
+        const rating = movie.vote_average
+            ? movie.vote_average.toFixed(1)
+            : "N/A";
+
+        const year = movie.release_date
+            ? movie.release_date.split("-")[0]
+            : "N/A";
+
+        const desc = movie.overview
+            ? movie.overview.substring(0, 60)
+            : "No description";
 
         const age = getAgeRating(rating);
 
-        const genres = ["Action", "Drama", "Comedy", "Thriller"];
-        const randomGenre = genres[Math.floor(Math.random() * genres.length)];
+        // REAL GENRE
+        let genre = "Other";
+        if (movie.genre_ids?.length) {
+            genre = GENRE_MAP[movie.genre_ids[0]] || "Other";
+        }
 
         const card = document.createElement("div");
         card.className = "movie-card";
 
         card.innerHTML = `
             <img src="${poster}">
+            <div class="play-btn">▶</div>
+
             <div class="movie-info">
                 <h3>${movie.title}</h3>
 
                 <div class="badges">
                     <span class="badge rating">⭐ ${rating}</span>
                     <span class="badge age">${age}</span>
-                    <span class="badge genre">${randomGenre}</span>
+                    <span class="badge genre">${genre}</span>
                 </div>
 
                 <p>📅 ${year}</p>
@@ -80,6 +105,7 @@ function displayMovies(movies) {
         container.appendChild(card);
     });
 }
+
 // ==========================
 // AGE CATEGORY
 // ==========================
@@ -126,7 +152,7 @@ async function playTrailer(id) {
         }
 
     } catch {
-        alert("Error loading trailer");
+        alert("Error loading trailer ❌");
     }
 }
 
@@ -153,16 +179,23 @@ function detectEmotion(text) {
 
     text = text.toLowerCase();
 
-    if (text.includes("sad")) return "top_rated";
-    if (text.includes("happy") || text.includes("fun")) return "popular";
-    if (text.includes("action") || text.includes("angry")) return "upcoming";
-    if (text.includes("romantic") || text.includes("love")) return "top_rated";
+    if (text.includes("sad") || text.includes("emotional"))
+        return "top_rated";
+
+    if (text.includes("happy") || text.includes("fun"))
+        return "popular";
+
+    if (text.includes("action") || text.includes("angry"))
+        return "upcoming";
+
+    if (text.includes("romantic") || text.includes("love"))
+        return "top_rated";
 
     return "popular";
 }
 
 // ==========================
-// 🎤 VOICE (UPGRADED)
+// 🎤 VOICE (IMPROVED)
 // ==========================
 function startVoice() {
 
@@ -179,24 +212,17 @@ function startVoice() {
     recognition.onresult = (e) => {
 
         let text = e.results[0][0].transcript;
-
-        console.log("You said:", text);
+        console.log("Voice:", text);
 
         let type = detectEmotion(text);
-
         getMovies(type);
-
-        // optional UI feedback
-        document.getElementById("emotionText") &&
-        (document.getElementById("emotionText").innerText =
-            "Detected: " + text);
     };
 
     recognition.start();
 }
 
 // ==========================
-// 🎭 CAMERA (SAFE VERSION)
+// 🎭 CAMERA
 // ==========================
 async function toggleCamera() {
 
@@ -210,7 +236,6 @@ async function toggleCamera() {
             video.style.display = "block";
             cameraOn = true;
 
-            // simulate detection
             setTimeout(() => {
                 getMovies("popular");
             }, 3000);
