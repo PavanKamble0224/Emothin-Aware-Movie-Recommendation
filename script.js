@@ -6,16 +6,12 @@ const BASE_URL = "https://api.themoviedb.org/3/movie/";
 const IMG_URL = "https://image.tmdb.org/t/p/w500";
 
 // ==========================
-// GENRE MAP (REAL)
+// GENRE MAP
 // ==========================
 const GENRE_MAP = {
-    28: "Action",
-    35: "Comedy",
-    18: "Drama",
-    27: "Horror",
-    10749: "Romance",
-    53: "Thriller",
-    878: "Sci-Fi"
+    28: "Action", 35: "Comedy", 18: "Drama",
+    27: "Horror", 10749: "Romance",
+    53: "Thriller", 878: "Sci-Fi"
 };
 
 // ==========================
@@ -41,12 +37,12 @@ async function getMovies(type = "popular") {
         displayMovies(currentMovies);
 
     } catch {
-        container.innerHTML = "<h2 style='color:red'>Error loading movies ❌</h2>";
+        container.innerHTML = "<h2 style='color:red'>Error ❌</h2>";
     }
 }
 
 // ==========================
-// DISPLAY MOVIES (PRO VERSION)
+// DISPLAY MOVIES
 // ==========================
 function displayMovies(movies) {
 
@@ -57,23 +53,13 @@ function displayMovies(movies) {
 
         const poster = movie.poster_path
             ? IMG_URL + movie.poster_path
-            : "https://via.placeholder.com/300x400?text=No+Image";
+            : "https://via.placeholder.com/300x400";
 
-        const rating = movie.vote_average
-            ? movie.vote_average.toFixed(1)
-            : "N/A";
-
-        const year = movie.release_date
-            ? movie.release_date.split("-")[0]
-            : "N/A";
-
-        const desc = movie.overview
-            ? movie.overview.substring(0, 60)
-            : "No description";
-
+        const rating = movie.vote_average?.toFixed(1) || "N/A";
+        const year = movie.release_date?.split("-")[0] || "N/A";
+        const desc = movie.overview?.substring(0, 60) || "No description";
         const age = getAgeRating(rating);
 
-        // REAL GENRE
         let genre = "Other";
         if (movie.genre_ids?.length) {
             genre = GENRE_MAP[movie.genre_ids[0]] || "Other";
@@ -85,23 +71,19 @@ function displayMovies(movies) {
         card.innerHTML = `
             <img src="${poster}">
             <div class="play-btn">▶</div>
-
             <div class="movie-info">
                 <h3>${movie.title}</h3>
-
                 <div class="badges">
                     <span class="badge rating">⭐ ${rating}</span>
                     <span class="badge age">${age}</span>
                     <span class="badge genre">${genre}</span>
                 </div>
-
                 <p>📅 ${year}</p>
                 <p>${desc}...</p>
             </div>
         `;
 
         card.onclick = () => playTrailer(movie.id);
-
         container.appendChild(card);
     });
 }
@@ -119,7 +101,6 @@ function getAgeRating(rating) {
 // SEARCH
 // ==========================
 document.getElementById("search")?.addEventListener("input", () => {
-
     const value = document.getElementById("search").value.toLowerCase();
 
     const filtered = currentMovies.filter(movie =>
@@ -140,28 +121,21 @@ async function playTrailer(id) {
         );
 
         const data = await res.json();
-
         const trailer = data.results.find(v => v.type === "Trailer");
 
         if (trailer) {
-            document.getElementById("modal").style.display = "flex";
-            document.getElementById("trailer").src =
-                `https://www.youtube.com/embed/${trailer.key}`;
-        } else {
-            alert("Trailer not available 😅");
+            modal.style.display = "flex";
+            trailer.src = `https://youtube.com/embed/${trailer.key}`;
         }
 
     } catch {
-        alert("Error loading trailer ❌");
+        alert("Trailer error ❌");
     }
 }
 
-// ==========================
-// CLOSE MODAL
-// ==========================
 function closeModal() {
-    document.getElementById("modal").style.display = "none";
-    document.getElementById("trailer").src = "";
+    modal.style.display = "none";
+    trailer.src = "";
 }
 
 // ==========================
@@ -173,56 +147,40 @@ function toggleMode() {
 }
 
 // ==========================
-// 🧠 AI EMOTION LOGIC
-// ==========================
-function detectEmotion(text) {
-
-    text = text.toLowerCase();
-
-    if (text.includes("sad") || text.includes("emotional"))
-        return "top_rated";
-
-    if (text.includes("happy") || text.includes("fun"))
-        return "popular";
-
-    if (text.includes("action") || text.includes("angry"))
-        return "upcoming";
-
-    if (text.includes("romantic") || text.includes("love"))
-        return "top_rated";
-
-    return "popular";
-}
-
-// ==========================
-// 🎤 VOICE (IMPROVED)
+// 🎤 VOICE
 // ==========================
 function startVoice() {
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!SR) {
-        alert("Use Chrome for voice 🎤");
-        return;
-    }
+    if (!SR) return alert("Use Chrome");
 
-    const recognition = new SR();
-    recognition.lang = "en-US";
+    const r = new SR();
 
-    recognition.onresult = (e) => {
+    r.onresult = e => {
+        let text = e.results[0][0].transcript.toLowerCase();
 
-        let text = e.results[0][0].transcript;
-        console.log("Voice:", text);
-
-        let type = detectEmotion(text);
-        getMovies(type);
+        if (text.includes("sad")) getMovies("top_rated");
+        else if (text.includes("happy")) getMovies("popular");
+        else if (text.includes("action")) getMovies("upcoming");
+        else getMovies("popular");
     };
 
-    recognition.start();
+    r.start();
 }
 
 // ==========================
-// 🎭 CAMERA
+// 🧠 FACE AI MODELS
+// ==========================
+async function loadModels() {
+    const URL = "https://justadudewhohacks.github.io/face-api.js/models";
+
+    await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
+    await faceapi.nets.faceExpressionNet.loadFromUri(URL);
+}
+
+// ==========================
+// 🎭 CAMERA + AI DETECTION
 // ==========================
 async function toggleCamera() {
 
@@ -231,30 +189,70 @@ async function toggleCamera() {
     if (!cameraOn) {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
-
             video.srcObject = stream;
             video.style.display = "block";
             cameraOn = true;
 
-            setTimeout(() => {
-                getMovies("popular");
-            }, 3000);
+            await loadModels();
+            detectEmotion(video);
 
         } catch {
-            alert("Camera permission denied ❌");
+            alert("Camera error ❌");
         }
 
-    } else {
-        stopCamera();
-    }
+    } else stopCamera();
 }
 
+// ==========================
+// DETECT EMOTION
+// ==========================
+async function detectEmotion(video) {
+
+    const interval = setInterval(async () => {
+
+        const result = await faceapi
+            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+            .withFaceExpressions();
+
+        if (result) {
+
+            const emotions = result.expressions;
+
+            let emotion = Object.keys(emotions).reduce((a, b) =>
+                emotions[a] > emotions[b] ? a : b
+            );
+
+            console.log("Emotion:", emotion);
+
+            handleEmotion(emotion);
+
+            clearInterval(interval);
+            stopCamera();
+        }
+
+    }, 1500);
+}
+
+// ==========================
+// EMOTION → MOVIES
+// ==========================
+function handleEmotion(emotion) {
+
+    if (emotion === "happy") getMovies("popular");
+    else if (emotion === "sad") getMovies("top_rated");
+    else if (emotion === "angry") getMovies("upcoming");
+    else getMovies("popular");
+}
+
+// ==========================
+// STOP CAMERA
+// ==========================
 function stopCamera() {
 
     const video = document.getElementById("video");
 
     if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(t => t.stop());
         stream = null;
     }
 
