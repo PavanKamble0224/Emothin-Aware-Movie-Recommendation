@@ -1,62 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>EmoPlay</title>
+<title>EmoPlay AI Pro</title>
+
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
 <style>
 body { margin:0; font-family:Arial; transition:0.4s; }
 body.dark { background:#0f0f0f; color:white; }
 body.light { background:linear-gradient(135deg,#ffdde1,#c2e9fb); color:#222; }
 
-/* HEADER GRID */
 header {
     display:grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns:1fr 1fr 1fr;
+    padding:15px;
     align-items:center;
-    padding:15px 20px;
 }
 
-/* LEFT PANEL */
-.left-panel {
-    display:flex;
-    flex-direction:column;
-}
+.left-panel { display:flex; flex-direction:column; }
 
-/* USERNAME */
-#userDisplay {
-    font-weight:bold;
-    margin-bottom:5px;
-}
+#userDisplay { font-weight:bold; margin-bottom:5px; }
 
-/* CENTER LOGO */
-.logo {
-    text-align:center;
-    font-size:24px;
-    font-weight:bold;
-}
+.logo { text-align:center; font-size:24px; font-weight:bold; }
 
-/* RIGHT PANEL */
-.right-panel {
-    text-align:right;
-}
+.right-panel { text-align:right; }
 
-/* INPUT */
 input {
     padding:8px;
     border-radius:20px;
     border:none;
 }
 
-/* BUTTON */
 button {
-    padding:8px 12px;
+    padding:8px;
     border:none;
     border-radius:20px;
     cursor:pointer;
-    margin-left:5px;
 }
 
-/* HERO SCROLL */
 .hero-row {
     display:flex;
     overflow-x:auto;
@@ -69,7 +50,6 @@ button {
     height:180px;
     border-radius:10px;
     background-size:cover;
-    background-position:center;
 }
 
 /* MOVIES */
@@ -85,28 +65,19 @@ button {
     min-width:180px;
     border-radius:12px;
     overflow:hidden;
-    cursor:pointer;
     transition:0.4s;
 }
 
-body.dark .card { background:#1c1c1c; }
-body.light .card { background:white; }
-
 .card:hover { transform:scale(1.1); }
 
-.card img {
-    width:100%;
-    height:260px;
-    object-fit:cover;
-}
+.card img { width:100%; height:260px; object-fit:cover; }
 
-/* PLAY BUTTON */
 .play-btn {
     position:absolute;
     top:40%;
     left:50%;
     transform:translate(-50%,-50%);
-    background:rgba(0,0,0,0.7);
+    background:black;
     color:white;
     padding:10px;
     border-radius:50%;
@@ -115,33 +86,31 @@ body.light .card { background:white; }
 
 .card:hover .play-btn { display:block; }
 
-/* INFO */
 .info { padding:8px; }
 
-.badge {
-    font-size:10px;
-    padding:2px 6px;
-    border-radius:5px;
-    margin-right:5px;
-}
+.badge { font-size:10px; padding:2px 6px; border-radius:5px; }
 
-.rating { background:#f5c518; color:black; }
-.age { background:#e50914; color:white; }
-.genre { background:#00c853; color:white; }
-
-video { display:none; }
+.rating { background:#f5c518; }
+.age { background:red; color:white; }
+.genre { background:green; color:white; }
 
 .modal {
     position:fixed;
     top:0; left:0;
     width:100%; height:100%;
-    background:rgba(0,0,0,0.9);
+    background:black;
     display:none;
     justify-content:center;
     align-items:center;
 }
 
 iframe { width:80%; height:60%; }
+
+#emotionText {
+    text-align:center;
+    font-weight:bold;
+    margin-top:10px;
+}
 </style>
 </head>
 
@@ -149,24 +118,18 @@ iframe { width:80%; height:60%; }
 
 <header>
 
-<!-- LEFT -->
 <div class="left-panel">
-
 <div id="authBox">
 <input id="username" placeholder="Username">
 <button onclick="login()">Login</button>
 </div>
 
 <div id="userDisplay"></div>
-
 <input id="search" placeholder="Search...">
-
 </div>
 
-<!-- CENTER -->
-<div class="logo">🎬 EmoPlay</div>
+<div class="logo">🎬 EmoPlay AI</div>
 
-<!-- RIGHT -->
 <div class="right-panel">
 <button onclick="toggleCamera()">🎭</button>
 <button onclick="startVoice()">🎤</button>
@@ -175,125 +138,75 @@ iframe { width:80%; height:60%; }
 
 </header>
 
-<!-- HERO SCROLL -->
-<div id="heroRow" class="hero-row"></div>
+<h3 id="emotionText"></h3>
 
-<!-- MOVIES -->
+<div id="heroRow" class="hero-row"></div>
 <div id="content"></div>
 
-<video id="video" width="300" autoplay muted></video>
+<video id="video" width="300" autoplay muted style="display:none;"></video>
 
 <div id="modal" class="modal" onclick="closeModal()">
 <iframe id="trailer"></iframe>
 </div>
 
 <script>
-const API_KEY = "b384060c08c6fe771268e9d4b1b9ed6f";
-const IMG = "https://image.tmdb.org/t/p/w500";
-const BASE = "https://api.themoviedb.org/3/movie/";
+const API_KEY="b384060c08c6fe771268e9d4b1b9ed6f";
+const IMG="https://image.tmdb.org/t/p/w500";
+const BASE="https://api.themoviedb.org/3/movie/";
 
-const GENRE_MAP = {
-28:"Action",35:"Comedy",18:"Drama",27:"Horror",
-10749:"Romance",53:"Thriller",878:"Sci-Fi"
-};
-
-let stream=null, cameraOn=false, currentMovies=[];
+let stream=null,cameraOn=false,currentMovies=[];
 
 // LOGIN
 function login(){
-    let u=document.getElementById("username").value;
+    let u=username.value;
     if(!u) return alert("Enter username");
 
     localStorage.setItem("user",u);
-    updateUser();
+    authBox.style.display="none";
+    userDisplay.innerText="👤 "+u;
 }
 
-function updateUser(){
-    let u=localStorage.getItem("user");
-
-    if(u){
-        document.getElementById("authBox").style.display="none";
-        document.getElementById("userDisplay").innerText="👤 "+u;
-    }
-}
-updateUser();
-
-// HERO (SCROLLABLE)
+// HERO
 async function loadHero(){
-    const res=await fetch(`${BASE}popular?api_key=${API_KEY}`);
-    const data=await res.json();
+    let res=await fetch(`${BASE}popular?api_key=${API_KEY}`);
+    let data=await res.json();
 
-    let html="";
-    data.results.slice(0,10).forEach(m=>{
-        html+=`
-        <div class="hero-card"
-        style="background-image:url(${IMG+m.backdrop_path})"></div>`;
-    });
-
-    document.getElementById("heroRow").innerHTML=html;
+    heroRow.innerHTML=data.results.slice(0,10).map(m=>
+        `<div class="hero-card" style="background:url(${IMG+m.backdrop_path}) center/cover"></div>`
+    ).join("");
 }
 
-// LOAD MOVIES
-async function loadSection(type){
-    const res=await fetch(`${BASE}${type}?api_key=${API_KEY}`);
-    const data=await res.json();
+// MOVIES
+async function loadMovies(type="popular"){
+    let res=await fetch(`${BASE}${type}?api_key=${API_KEY}`);
+    let data=await res.json();
 
-    currentMovies=data.results;
-    display(currentMovies);
-}
-
-// DISPLAY
-function display(movies){
-    let html='<div class="section"><div class="row">';
-
-    movies.forEach(m=>{
-        let genre="Other";
-        if(m.genre_ids?.length){
-            genre=GENRE_MAP[m.genre_ids[0]]||"Other";
-        }
-
-        html+=`
+    content.innerHTML='<div class="row">'+data.results.map(m=>`
         <div class="card" onclick="playTrailer(${m.id})">
             <img src="${IMG+m.poster_path}">
             <div class="play-btn">▶</div>
-
             <div class="info">
                 <h4>${m.title}</h4>
                 <span class="badge rating">⭐ ${m.vote_average}</span>
-                <span class="badge age">${getAge(m.vote_average)}</span>
-                <span class="badge genre">${genre}</span>
                 <p>${m.overview.substring(0,60)}...</p>
             </div>
-        </div>`;
-    });
-
-    html+='</div></div>';
-    document.getElementById("content").innerHTML=html;
-}
-
-// AGE
-function getAge(r){
-    if(r>=8) return "18+";
-    if(r>=6) return "16+";
-    return "13+";
+        </div>`).join("")+'</div>';
 }
 
 // SEARCH
-document.getElementById("search").addEventListener("input", async e=>{
+search.oninput=async e=>{
     let q=e.target.value;
     if(q.length<2) return;
 
-    const res=await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${q}`);
-    const data=await res.json();
-
-    display(data.results);
-});
+    let res=await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${q}`);
+    let data=await res.json();
+    loadMovies("popular");
+};
 
 // TRAILER
 async function playTrailer(id){
-    const res=await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${API_KEY}`);
-    const data=await res.json();
-
+    let res=await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${API_KEY}`);
+    let data=await res.json();
     let v=data.results.find(x=>x.type==="Trailer");
     if(v){
         modal.style.display="flex";
@@ -305,35 +218,65 @@ function closeModal(){
     trailer.src="";
 }
 
-// CAMERA
-async function toggleCamera(){
-    let v=document.getElementById("video");
-
-    if(!cameraOn){
-        stream=await navigator.mediaDevices.getUserMedia({video:true});
-        v.srcObject=stream;
-        v.style.display="block";
-        cameraOn=true;
-    } else {
-        stream.getTracks().forEach(t=>t.stop());
-        v.style.display="none";
-        cameraOn=false;
-    }
-}
-
 // VOICE
 function startVoice(){
     let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR) return alert("Use Chrome");
-
     let r=new SR();
+
     r.onresult=e=>{
         let t=e.results[0][0].transcript.toLowerCase();
-        if(t.includes("action")) loadSection("popular");
-        else if(t.includes("romantic")) loadSection("top_rated");
-        else if(t.includes("new")) loadSection("upcoming");
+
+        if(t.includes("happy")) loadMovies("popular");
+        else if(t.includes("sad")) loadMovies("top_rated");
+        else if(t.includes("action")) loadMovies("upcoming");
     };
+
     r.start();
+}
+
+// ================= AI FACE DETECTION =================
+async function loadModels(){
+    const URL="https://justadudewhohacks.github.io/face-api.js/models";
+    await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
+    await faceapi.nets.faceExpressionNet.loadFromUri(URL);
+}
+
+async function toggleCamera(){
+    if(!cameraOn){
+        stream=await navigator.mediaDevices.getUserMedia({video:true});
+        video.srcObject=stream;
+        video.style.display="block";
+        cameraOn=true;
+
+        await loadModels();
+        detectEmotion();
+    } else stopCamera();
+}
+
+async function detectEmotion(){
+    const interval=setInterval(async()=>{
+        const res=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+
+        if(res){
+            let emotions=res.expressions;
+            let emotion=Object.keys(emotions).reduce((a,b)=>emotions[a]>emotions[b]?a:b);
+
+            emotionText.innerText="Detected: "+emotion;
+
+            if(emotion==="happy") loadMovies("popular");
+            else if(emotion==="sad") loadMovies("top_rated");
+            else if(emotion==="angry") loadMovies("upcoming");
+
+            clearInterval(interval);
+            stopCamera();
+        }
+    },1500);
+}
+
+function stopCamera(){
+    stream.getTracks().forEach(t=>t.stop());
+    video.style.display="none";
+    cameraOn=false;
 }
 
 // MODE
@@ -344,7 +287,7 @@ function toggleMode(){
 
 // INIT
 loadHero();
-loadSection("popular");
+loadMovies();
 </script>
 
 </body>
