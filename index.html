@@ -4,71 +4,76 @@
 <title>EmoPlay Pro</title>
 
 <style>
-body { margin:0; font-family:Arial; transition:0.4s; }
+body { margin:0; font-family:Arial; }
 body.dark { background:#0f0f0f; color:white; }
 body.light { background:linear-gradient(135deg,#ffdde1,#c2e9fb); color:#222; }
 
+/* HEADER */
 header {
-    display:flex;
-    justify-content:space-between;
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
     align-items:center;
-    padding:15px 30px;
+    padding:15px;
 }
 
-.logo { font-size:24px; font-weight:bold; }
-
-input {
-    padding:8px;
-    border-radius:20px;
-    border:none;
-}
-
-button {
-    padding:8px 12px;
-    border:none;
-    border-radius:20px;
-    cursor:pointer;
-    margin-left:5px;
-}
-
-.hero {
-    height:300px;
+/* LEFT */
+.left {
     display:flex;
-    align-items:end;
-    padding:20px;
+    flex-direction:column;
+}
+
+/* CENTER */
+.center {
+    text-align:center;
+    font-size:24px;
+    font-weight:bold;
+}
+
+/* USER */
+#userDisplay {
+    font-weight:bold;
+    margin-bottom:5px;
+}
+
+/* HERO SCROLL */
+.hero-row {
+    display:flex;
+    overflow-x:auto;
+    gap:15px;
+    padding:15px;
+}
+
+.hero-card {
+    min-width:300px;
+    height:180px;
+    border-radius:10px;
     background-size:cover;
     background-position:center;
 }
 
-.section { padding:20px; }
-
+/* MOVIES */
 .row {
     display:flex;
     overflow-x:auto;
     gap:15px;
+    padding:20px;
 }
 
-/* MOVIE CARD */
 .card {
-    position:relative;
     min-width:180px;
-    border-radius:12px;
+    border-radius:10px;
     overflow:hidden;
     cursor:pointer;
-    transition:0.4s;
+    transition:0.3s;
 }
-
-body.dark .card { background:#1c1c1c; }
-body.light .card { background:white; }
 
 .card:hover {
     transform:scale(1.1);
-    z-index:2;
 }
 
 .card img {
     width:100%;
-    height:260px;
+    height:250px;
     object-fit:cover;
 }
 
@@ -78,10 +83,6 @@ body.light .card { background:white; }
     top:40%;
     left:50%;
     transform:translate(-50%,-50%);
-    background:rgba(0,0,0,0.7);
-    color:white;
-    padding:10px;
-    border-radius:50%;
     display:none;
 }
 
@@ -89,27 +90,7 @@ body.light .card { background:white; }
     display:block;
 }
 
-/* INFO */
-.info {
-    padding:8px;
-}
-
-.badge {
-    font-size:10px;
-    padding:2px 6px;
-    border-radius:5px;
-    margin-right:5px;
-}
-
-.rating { background:#f5c518; color:black; }
-.age { background:#e50914; color:white; }
-.genre { background:#00c853; color:white; }
-
-video {
-    display:none;
-    margin:auto;
-}
-
+/* MODAL */
 .modal {
     position:fixed;
     top:0; left:0;
@@ -126,119 +107,111 @@ iframe { width:80%; height:60%; }
 
 <body class="dark">
 
-<!-- LOGIN -->
-<div style="text-align:center;">
+<header>
+
+<!-- LEFT -->
+<div class="left">
+<div id="authBox">
 <input id="username" placeholder="Username">
 <button onclick="login()">Login</button>
-<button onclick="logout()">Logout</button>
-<p id="userStatus"></p>
 </div>
 
-<header>
-<div class="logo">🎬 EmoPlay</div>
+<div id="userDisplay"></div>
 
 <input id="search" placeholder="Search...">
-
-<div>
-<button onclick="toggleCamera()">🎭</button>
-<button onclick="startVoice()">🎤</button>
-<button onclick="toggleMode()">🌗</button>
 </div>
+
+<!-- CENTER -->
+<div class="center">🎬 EmoPlay</div>
+
+<!-- RIGHT -->
+<div style="text-align:right;">
+<button onclick="toggleMode()">🌗</button>
+<button onclick="startVoice()">🎤</button>
+<button onclick="toggleCamera()">🎭</button>
+</div>
+
 </header>
 
-<div id="hero" class="hero"></div>
-<div id="content"></div>
+<!-- HERO SCROLL -->
+<div id="heroRow" class="hero-row"></div>
 
-<video id="video" width="300" autoplay muted></video>
+<!-- MOVIES -->
+<div id="movies" class="row"></div>
+
+<video id="video" width="300" autoplay muted style="display:none;"></video>
 
 <div id="modal" class="modal" onclick="closeModal()">
 <iframe id="trailer"></iframe>
 </div>
 
 <script>
+
+// CONFIG
 const API_KEY = "b384060c08c6fe771268e9d4b1b9ed6f";
 const IMG = "https://image.tmdb.org/t/p/w500";
-const BASE = "https://api.themoviedb.org/3/movie/";
 
-const GENRE_MAP = {
-28:"Action",35:"Comedy",18:"Drama",27:"Horror",
-10749:"Romance",53:"Thriller",878:"Sci-Fi"
-};
-
-let stream=null, cameraOn=false, currentMovies=[];
-
-// LOGIN
+// ================= LOGIN =================
 function login(){
     let u=document.getElementById("username").value;
     if(!u) return alert("Enter username");
+
     localStorage.setItem("user",u);
-    updateUser();
+    updateUI();
 }
-function logout(){
-    localStorage.removeItem("user");
-    updateUser();
-}
-function updateUser(){
+
+function updateUI(){
     let u=localStorage.getItem("user");
-    document.getElementById("userStatus").innerText =
-        u ? "Logged in: "+u : "Not logged in";
-}
-updateUser();
 
-// HERO
-function setHero(m){
-    document.getElementById("hero").style.backgroundImage =
-        `url(${IMG+m.backdrop_path})`;
+    if(u){
+        document.getElementById("authBox").style.display="none";
+        document.getElementById("userDisplay").innerText="👤 "+u;
+    }
 }
 
-// LOAD
-async function loadSection(type){
-    const res=await fetch(`${BASE}${type}?api_key=${API_KEY}`);
+updateUI();
+
+// ================= HERO =================
+async function loadHero(){
+    const res=await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}`);
     const data=await res.json();
 
-    currentMovies=data.results;
-    setHero(currentMovies[0]);
+    let html="";
 
-    display(currentMovies);
-}
-
-// DISPLAY
-function display(movies){
-    let html='<div class="section"><div class="row">';
-
-    movies.forEach(m=>{
-        let genre="Other";
-        if(m.genre_ids?.length){
-            genre=GENRE_MAP[m.genre_ids[0]]||"Other";
-        }
-
+    data.results.slice(0,10).forEach(m=>{
         html+=`
-        <div class="card" onclick="playTrailer(${m.id})">
-            <img src="${IMG+m.poster_path}">
-            <div class="play-btn">▶</div>
-
-            <div class="info">
-                <h4>${m.title}</h4>
-                <span class="badge rating">⭐ ${m.vote_average}</span>
-                <span class="badge age">${getAge(m.vote_average)}</span>
-                <span class="badge genre">${genre}</span>
-                <p>${m.overview.substring(0,60)}...</p>
-            </div>
+        <div class="hero-card"
+        style="background-image:url(${IMG+m.backdrop_path})">
         </div>`;
     });
 
-    html+='</div></div>';
-    document.getElementById("content").innerHTML=html;
+    document.getElementById("heroRow").innerHTML=html;
 }
 
-// AGE
-function getAge(r){
-    if(r>=8) return "18+";
-    if(r>=6) return "16+";
-    return "13+";
+// ================= MOVIES =================
+async function loadMovies(){
+    const res=await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}`);
+    const data=await res.json();
+
+    displayMovies(data.results);
 }
 
-// SEARCH
+// DISPLAY
+function displayMovies(movies){
+    let html="";
+
+    movies.forEach(m=>{
+        html+=`
+        <div class="card" onclick="playTrailer(${m.id})">
+            <img src="${IMG+m.poster_path}">
+            <h4>${m.title}</h4>
+        </div>`;
+    });
+
+    document.getElementById("movies").innerHTML=html;
+}
+
+// ================= SEARCH =================
 document.getElementById("search").addEventListener("input", async e=>{
     let q=e.target.value;
     if(q.length<2) return;
@@ -246,46 +219,46 @@ document.getElementById("search").addEventListener("input", async e=>{
     const res=await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${q}`);
     const data=await res.json();
 
-    display(data.results);
+    displayMovies(data.results);
 });
 
-// TRAILER
+// ================= TRAILER =================
 async function playTrailer(id){
     const res=await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${API_KEY}`);
     const data=await res.json();
 
     let v=data.results.find(x=>x.type==="Trailer");
+
     if(v){
         modal.style.display="flex";
         trailer.src=`https://youtube.com/embed/${v.key}`;
     }
 }
+
 function closeModal(){
     modal.style.display="none";
     trailer.src="";
 }
 
-// CAMERA
+// ================= CAMERA =================
+let stream=null, cameraOn=false;
+
 async function toggleCamera(){
     let v=document.getElementById("video");
 
     if(!cameraOn){
-        try{
-            stream=await navigator.mediaDevices.getUserMedia({video:true});
-            v.srcObject=stream;
-            v.style.display="block";
-            cameraOn=true;
-            setTimeout(()=>loadSection("popular"),3000);
-        }catch{ alert("Camera error ❌"); }
-    } else stopCamera();
-}
-function stopCamera(){
-    if(stream) stream.getTracks().forEach(t=>t.stop());
-    video.style.display="none";
-    cameraOn=false;
+        stream=await navigator.mediaDevices.getUserMedia({video:true});
+        v.srcObject=stream;
+        v.style.display="block";
+        cameraOn=true;
+    } else {
+        stream.getTracks().forEach(t=>t.stop());
+        v.style.display="none";
+        cameraOn=false;
+    }
 }
 
-// VOICE
+// ================= VOICE =================
 function startVoice(){
     let SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR) return alert("Use Chrome");
@@ -293,21 +266,22 @@ function startVoice(){
     let r=new SR();
     r.onresult=e=>{
         let t=e.results[0][0].transcript.toLowerCase();
-        if(t.includes("action")) loadSection("popular");
-        else if(t.includes("romantic")) loadSection("top_rated");
-        else if(t.includes("new")) loadSection("upcoming");
+        if(t.includes("action")) loadMovies();
+        else if(t.includes("romantic")) loadMovies();
     };
     r.start();
 }
 
-// MODE
+// ================= MODE =================
 function toggleMode(){
     document.body.classList.toggle("dark");
     document.body.classList.toggle("light");
 }
 
 // INIT
-loadSection("popular");
+loadHero();
+loadMovies();
+
 </script>
 
 </body>
